@@ -16,7 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from AppIA import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', views.signin, name='login'),
+    path('signup/', views.signup, name='signup'),
+    path('home/', views.home, name='home'),
 ]
