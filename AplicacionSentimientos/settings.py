@@ -73,9 +73,11 @@ WSGI_APPLICATION = 'AplicacionSentimientos.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Corrección en el archivo settings.py
+
 DATABASES = {
     'default': {
-        'ENGINE': 'mssql',
+        'ENGINE': 'mssql', 
         'NAME': 'Sentimientos',
         'HOST': 'JULIAN',
         'PORT': '',
