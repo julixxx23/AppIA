@@ -79,7 +79,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'mssql', 
         'NAME': 'Sentimientos',
-        'HOST': 'Bu\SQLEXPRESS',
+        'HOST': 'JULIAN',
         'PORT': '',
         'USER': '',
         'PASSWORD': '',

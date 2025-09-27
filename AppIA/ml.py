@@ -1,16 +1,16 @@
 # AppIA/ml.py
 import tensorflow as tf
 from tensorflow import keras
-from keras.preprocessing.text import Tokenizer
-from keras.utils import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.utils import pad_sequences
 import numpy as np
 import pickle
 import os
 
-# Define la ruta base para tus archivos de modelo
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 1. Cargar el tokenizador (necesario para preprocesar el texto)
+#  Cargar el tokenizador (necesario para preprocesar el texto)
 # Es CRUCIAL usar el mismo tokenizador con el que se entrenó el modelo.
 try:
     with open(os.path.join(BASE_DIR, 'tokenizer.pickle'), 'rb') as handle:
@@ -19,7 +19,7 @@ except FileNotFoundError:
     print("Error: No se encontró el archivo 'tokenizer.pickle'. Asegúrate de que existe.")
     tokenizer = None
 
-# 2. Cargar el modelo de Keras previamente entrenado
+#  Cargar el modelo de Keras previamente entrenado
 model_path = os.path.join(BASE_DIR, 'modelo_emociones.h5')
 try:
     model = keras.models.load_model(model_path)
@@ -28,7 +28,7 @@ except (IOError, ValueError) as e:
     print(f"Error al cargar el modelo: {e}. Asegúrate de que el archivo existe y es válido.")
     model = None
 
-# 3. Definir las etiquetas de las emociones
+# Definir las etiquetas de las emociones
 EMOTION_LABELS = {
     0: 'Neutral',
     1: 'Positivo',
@@ -36,7 +36,7 @@ EMOTION_LABELS = {
     3: 'Extorsión'
 }
 
-# 4. Configurar parámetros del preprocesamiento
+# Configurar parámetros del preprocesamiento
 MAX_SEQUENCE_LENGTH = 100 # La longitud máxima de las secuencias de texto
 
 def preprocess_text(text):

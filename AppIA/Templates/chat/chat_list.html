@@ -1,0 +1,372 @@
+<!-- AppIA/Templates/chat/chat_list.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - Conversaciones</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: #075e54;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .new-chat-btn {
+            background: #25d366;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        
+        .new-chat-btn:hover {
+            background: #20ba5a;
+        }
+        
+        .conversations-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .conversation-item {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+            color: inherit;
+        }
+        
+        .conversation-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #25d366;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 15px;
+            font-size: 18px;
+        }
+        
+        .conversation-info {
+            flex: 1;
+        }
+        
+        .conversation-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #111;
+        }
+        
+        .last-message {
+            color: #666;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .conversation-meta {
+            text-align: right;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .no-conversations {
+            text-align: center;
+            padding: 50px 20px;
+            color: #666;
+        }
+        
+        .no-conversations i {
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 0;
+            width: 90%;
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .modal-header {
+            background: #075e54;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        .modal-body {
+            padding: 20px;
+        }
+        
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+        
+        .user-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .user-item:hover {
+            background: #f0f0f0;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #25d366;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            margin-right: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <header class="header">
+            <h1>
+                <i class="fas fa-comments"></i>
+                Mensajería
+            </h1>
+            <div class="user-info">
+                <span>Bienvenido, {{ user.username }}</span>
+                <button class="new-chat-btn" onclick="openNewChatModal()">
+                    <i class="fas fa-plus"></i>
+                    Nueva conversación
+                </button>
+            </div>
+        </header>
+        
+        <div class="conversations-list">
+            {% if conversations %}
+                {% for conversation in conversations %}
+                    <a href="{% url 'chat_detail' conversation.id %}" class="conversation-item">
+                        <div class="avatar">
+                            {{ conversation.get_other_participant.username|first|upper }}
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-name">
+                                {{ conversation.get_other_participant.get_full_name|default:conversation.get_other_participant.username }}
+                            </div>
+                            <div class="last-message">
+                                {% if conversation.last_message %}
+                                    {{ conversation.last_message.content|truncatechars:50 }}
+                                {% else %}
+                                    Inicia la conversación
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="conversation-meta">
+                            {% if conversation.last_message %}
+                                {{ conversation.last_message.created_at|date:"H:i" }}
+                            {% endif %}
+                        </div>
+                    </a>
+                {% endfor %}
+            {% else %}
+                <div class="no-conversations">
+                    <i class="fas fa-comment-slash"></i>
+                    <h3>No tienes conversaciones</h3>
+                    <p>Inicia una nueva conversación para comenzar a chatear</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Modal para nueva conversación -->
+    <div id="newChatModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Nueva Conversación</h3>
+                <span class="close" onclick="closeNewChatModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="userSearch" class="search-box" placeholder="Buscar usuario..." onkeyup="searchUsers()">
+                <div id="userList" class="user-list">
+                    {% for user in users %}
+                        <div class="user-item" onclick="startConversation({{ user.id }})">
+                            <div class="user-avatar">{{ user.username|first|upper }}</div>
+                            <div>
+                                <div>{{ user.get_full_name|default:user.username }}</div>
+                                <small style="color: #666;">@{{ user.username }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function openNewChatModal() {
+            document.getElementById('newChatModal').style.display = 'block';
+        }
+        
+        function closeNewChatModal() {
+            document.getElementById('newChatModal').style.display = 'none';
+            document.getElementById('userSearch').value = '';
+        }
+        
+        function startConversation(userId) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "start_conversation" %}';
+            
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = 'csrfmiddlewaretoken';
+            csrfToken.value = '{{ csrf_token }}';
+            
+            const userIdInput = document.createElement('input');
+            userIdInput.type = 'hidden';
+            userIdInput.name = 'user_id';
+            userIdInput.value = userId;
+            
+            form.appendChild(csrfToken);
+            form.appendChild(userIdInput);
+            document.body.appendChild(form);
+            form.submit();
+        }
+        
+        function searchUsers() {
+            const query = document.getElementById('userSearch').value;
+            
+            if (query.length < 2) {
+                return;
+            }
+            
+            fetch(`{% url 'search_users' %}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const userList = document.getElementById('userList');
+                    userList.innerHTML = '';
+                    
+                    data.users.forEach(user => {
+                        const userItem = document.createElement('div');
+                        userItem.className = 'user-item';
+                        userItem.onclick = () => startConversation(user.id);
+                        userItem.innerHTML = `
+                            <div class="user-avatar">${user.username.charAt(0).toUpperCase()}</div>
+                            <div>
+                                <div>${user.full_name}</div>
+                                <small style="color: #666;">@${user.username}</small>
+                            </div>
+                        `;
+                        userList.appendChild(userItem);
+                    });
+                });
+        }
+        
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('newChatModal');
+            if (event.target === modal) {
+                closeNewChatModal();
+            }
+        }
+    </script>
+</body>
+</html>
+
