@@ -10,6 +10,7 @@ urlpatterns = [
     path('', views.signin, name='login'),
     path('signup/', views.signup, name='signup'),
     path('home/', views.home, name='home'),
+<<<<<<< HEAD
     
     # URLs del Chat
     path('chat/', views.chat_list, name='chat_list'),
@@ -28,3 +29,13 @@ urlpatterns = [
     path('admin-dashboard/report/<int:report_id>/', views.conversation_analysis_report, name='conversation_analysis_report'),
     path('admin-dashboard/general-analysis/', views.generate_general_analysis, name='generate_general_analysis'),
 ]
+=======
+    path('management/users/', views.admin_users_crud, name='admin_crud' ),
+    path('management/users/<int:user_id>/data/', views.get_user_data, name='get_user_data'),
+    path('anSentimientos/', views.anSentimientos, name='anSentimientos' ),
+    path('analytics/', views.analytics, name='analytics'),
+
+    ## USER
+    path('user_home/', views.user_home, name='user_home'),
+]
+>>>>>>> 8275552bd0b46b74ab59845d9d524b4cb6d5d7a1
