@@ -23,4 +23,11 @@ urlpatterns = [
     path('', views.signin, name='login'),
     path('signup/', views.signup, name='signup'),
     path('home/', views.home, name='home'),
+    path('management/users/', views.admin_users_crud, name='admin_crud' ),
+    path('management/users/<int:user_id>/data/', views.get_user_data, name='get_user_data'),
+    path('anSentimientos/', views.anSentimientos, name='anSentimientos' ),
+    path('analytics/', views.analytics, name='analytics'),
+
+    ## USER
+    path('user_home/', views.user_home, name='user_home'),
 ]

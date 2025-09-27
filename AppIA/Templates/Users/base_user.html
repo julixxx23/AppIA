@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Usuario{% endblock %}</title>
+    <!-- Aquí puedes agregar tus CSS -->
+    <link rel="stylesheet" href="{% static 'css/user.css' %}">
+</head>
+<body>
+    <header>
+        <nav>
+            <h1>Mi Sitio - Usuario</h1>
+            <ul>
+                <li><a href="{% url 'user_home' %}">Inicio</a></li>   <!-- user_home -->
+                <li><a href="#">Perfil</a></li>
+                <li><a href="{% url 'logout' %}">Cerrar sesión</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}
+        <h1>Bienvenido al área de usuario</h1>
+        <!-- Aquí irá el contenido específico de cada página -->
+        {% endblock %}
+    </main>
+
+    <footer>
+        <p>© 2025 Mi Sitio</p>
+    </footer>
+</body>
+</html>

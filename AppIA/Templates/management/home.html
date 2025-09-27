@@ -1,0 +1,301 @@
+{% extends 'management/base.html' %}
+
+{% block page_title %}Panel de Administración{% endblock %}
+{% block page_subtitle %}Bienvenido al sistema de gestión{% endblock %}
+
+{% block content %}
+<!-- Welcome section -->
+<div class="welcome-section">
+    <div class="welcome-icon">
+        <i class="fas fa-tachometer-alt"></i>
+    </div>
+    <h2 class="welcome-title">Bienvenido al Panel de Control</h2>
+    <p class="welcome-text">
+        Desde aquí puedes gestionar todos los aspectos de tu sistema. Utiliza el 
+        menú lateral para navegar entre las diferentes secciones.
+    </p>
+
+    <!-- Statistics Cards -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-number">{{ total_users }}</div>
+            <div class="stat-label">Usuarios Registrados</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stat-number">92%</div>
+            <div class="stat-label">Rendimiento del Sistema</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-number">98%</div>
+            <div class="stat-label">Satisfacción del Usuario</div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions Section -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card h-100 quick-action-card">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                <h5 class="card-title">Gestionar Usuarios</h5>
+                <p class="card-text">Crear, editar y administrar usuarios del sistema</p>
+                <a href="{% url 'admin_crud' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-right me-1"></i>Ir a Usuarios
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 quick-action-card">
+            <div class="card-body text-center">
+                <i class="fas fa-brain fa-3x text-success mb-3"></i>
+                <h5 class="card-title">Análisis de Sentimientos</h5>
+                <p class="card-text">Procesar y analizar datos de sentimientos</p>
+                <a href="{% url 'anSentimientos' %}" class="btn btn-primary">
+                    <i class="fas fa-arrow-right me-1"></i>Analizar
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 quick-action-card">
+            <div class="card-body text-center">
+                <i class="fas fa-chart-bar fa-3x text-info mb-3"></i>
+                <h5 class="card-title">Reportes</h5>
+                <p class="card-text">Ver estadísticas y generar reportes</p>
+                <a href="#" class="btn btn-info">
+                    <i class="fas fa-arrow-right me-1"></i>Ver Reportes
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity Section -->
+<div class="row mt-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>Actividad Reciente
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-primary"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Nuevo usuario registrado</h6>
+                            <p class="timeline-text">Se ha registrado un nuevo usuario en el sistema</p>
+                            <small class="text-muted">Hace 2 horas</small>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-success"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Análisis completado</h6>
+                            <p class="timeline-text">Procesamiento de sentimientos finalizado exitosamente</p>
+                            <small class="text-muted">Hace 4 horas</small>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-marker bg-warning"></div>
+                        <div class="timeline-content">
+                            <h6 class="timeline-title">Sistema actualizado</h6>
+                            <p class="timeline-text">Nueva versión del sistema implementada</p>
+                            <small class="text-muted">Hace 1 día</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Estado del Sistema
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="system-status">
+                    <div class="status-item">
+                        <span class="status-label">Base de Datos</span>
+                        <span class="status-indicator status-ok">
+                            <i class="fas fa-circle"></i> Online
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Servidor Web</span>
+                        <span class="status-indicator status-ok">
+                            <i class="fas fa-circle"></i> Online
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">API Externa</span>
+                        <span class="status-indicator status-warning">
+                            <i class="fas fa-circle"></i> Lenta
+                        </span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Backup</span>
+                        <span class="status-indicator status-ok">
+                            <i class="fas fa-circle"></i> Actualizado
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tachometer-alt me-2"></i>Estadísticas Rápidas
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="quick-stat">
+                    <span class="quick-stat-label">Usuarios Online</span>
+                    <span class="quick-stat-value text-primary">{{ online_users|default:"24" }}</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">Análisis Hoy</span>
+                    <span class="quick-stat-value text-success">{{ today_analysis|default:"156" }}</span>
+                </div>
+                <div class="quick-stat">
+                    <span class="quick-stat-label">Errores</span>
+                    <span class="quick-stat-value text-danger">{{ system_errors|default:"2" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Additional styles for home page */
+.quick-action-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.quick-action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #dee2e6;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -37px;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 3px solid white;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.timeline-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.timeline-text {
+    font-size: 13px;
+    color: #7f8c8d;
+    margin-bottom: 5px;
+}
+
+.system-status .status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.system-status .status-item:last-child {
+    border-bottom: none;
+}
+
+.status-label {
+    font-size: 13px;
+    color: #2c3e50;
+}
+
+.status-indicator {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-ok {
+    color: #27ae60;
+}
+
+.status-warning {
+    color: #f39c12;
+}
+
+.status-error {
+    color: #e74c3c;
+}
+
+.quick-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.quick-stat:last-child {
+    border-bottom: none;
+}
+
+.quick-stat-label {
+    font-size: 13px;
+    color: #7f8c8d;
+}
+
+.quick-stat-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
