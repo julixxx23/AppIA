@@ -48,4 +48,11 @@ urlpatterns = [
 
     # URLs de Usuario
     path('user_home/', views.user_home, name='user_home'),
+<<<<<<< HEAD
 ]
+=======
+    path('user_chat', views.chat, name='chat'),
+    path('user_contactos', views.contactos, name='contactos'),
+    path('user_perfil', views.perfil, name='perfil'),
+]
+>>>>>>> a3818a93b57611c256ac054d4268cc30f77c31c7

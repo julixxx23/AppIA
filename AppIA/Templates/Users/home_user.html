@@ -1,1 +1,153 @@
-<h1>Esto es para el usuario</h1>
+{% extends 'Users/base_user.html' %}
+
+{% block page_title %}Panel de Usuario{% endblock %}
+{% block page_subtitle %}Bienvenido a tu espacio personal{% endblock %}
+
+{% block content %}
+<!-- HOME PRINCIPAL -->
+<div class="welcome-section">
+    <div class="welcome-icon">
+        <i class="fas fa-heart"></i>
+    </div>
+    <h2 class="welcome-title">Bienvenido, {{ request.user.first_name|default:request.user.username }}</h2>
+    <p class="welcome-text">
+        Conecta con otros usuarios, comparte tus emociones y explora un espacio 
+        diseñado para el bienestar emocional.
+    </p>
+
+    <div class="stats-row">
+        <div class="stat-card joy">
+            <div class="stat-icon joy">
+                <i class="fas fa-smile"></i>
+            </div>
+            <div class="stat-number">{{ total_conversations|default:"0" }}</div>
+            <div class="stat-label">Conversaciones</div>
+        </div>
+        <div class="stat-card calm">
+            <div class="stat-icon calm">
+                <i class="fas fa-user-friends"></i>
+            </div>
+            <div class="stat-number">{{ total_contacts|default:"0" }}</div>
+            <div class="stat-label">Contactos</div>
+        </div>
+        <div class="stat-card love">
+            <div class="stat-icon love">
+                <i class="fas fa-heart"></i>
+            </div>
+            <div class="stat-number">{{ mood_score|default:"0" }}%</div>
+            <div class="stat-label">Estado de Ánimo</div>
+        </div>
+    </div>
+</div>
+
+<!-- BOTONES -->
+<div class="row mt-4">
+    <div class="col-md-4">
+        <div class="card h-100 quick-action-card">
+            <div class="card-body text-center">
+                <i class="fas fa-comments fa-3x mb-3" style="color: #f093fb;"></i>
+                <h5 class="card-title">Conversaciones</h5>
+                <p class="card-text">Inicia o continúa tus conversaciones</p>
+                <a href="{% url 'chat'%}" class="btn btn-gradient">
+                   Ir a Chat
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 quick-action-card">
+            <div class="card-body text-center">
+                <i class="fas fa-user-friends fa-3x mb-3" style="color: #4facfe;"></i>
+                <h5 class="card-title">Mis Contactos</h5>
+                <p class="card-text">Administra tu lista de contactos</p>
+                <a href="{% url 'contactos'%}" class="btn btn-gradient">
+                    <i class="fas fa-arrow-right me-1"></i>Ver Contactos
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 quick-action-card">
+            <div class="card-body text-center">
+                <i class="fas fa-user-circle fa-3x mb-3" style="color: #764ba2;"></i>
+                <h5 class="card-title">Mi Perfil</h5>
+                <p class="card-text">Actualiza tu información personal</p>
+                <a href="{% url 'perfil'%}" class="btn btn-gradient">
+                    <i class="fas fa-arrow-right me-1"></i>Editar Perfil
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ACTIVIDAD RECIENTE -->
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-gradient-custom text-white">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2"></i>Actividad Reciente
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if recent_activity %}
+                    <div class="list-group">
+                        {% for activity in recent_activity %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">{{ activity.title }}</h6>
+                                <small class="text-muted">{{ activity.time }}</small>
+                            </div>
+                            <p class="mb-1">{{ activity.description }}</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted py-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No hay actividad reciente. ¡Comienza a interactuar!
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.quick-action-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.quick-action-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.btn-gradient {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    transition: all 0.3s ease;
+}
+
+.btn-gradient:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.bg-gradient-custom {
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.card-header {
+    border-bottom: none;
+}
+</style>
+{% endblock %}

@@ -552,6 +552,7 @@ def conversation_analysis_report(request, report_id):
     }
     return render(request, 'management/conversation_report.html', context)
 
+
 @user_passes_test(is_admin)
 def generate_general_analysis(request):
     if request.method == 'POST':
@@ -607,3 +608,17 @@ def generate_general_analysis(request):
         'total_conversations': Conversation.objects.count(),
     }
     return render(request, 'management/generate_general_analysis.html', context)
+
+    ## USER LOGIC
+def user_home(request):
+    return render (request, 'Users/home_user.html')
+
+def chat(request):
+    return render (request, 'Users/chat.html')
+
+def contactos(request):
+    return render (request, 'Users/contacts.html')
+
+def perfil(request):
+    return render (request, 'Users/perfil.html')
+
