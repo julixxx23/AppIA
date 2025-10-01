@@ -247,3 +247,12 @@ def get_user_data(request, user_id):
     ## USER LOGIC
 def user_home(request):
     return render (request, 'Users/home_user.html')
+
+def chat(request):
+    return render (request, 'Users/chat.html')
+
+def contactos(request):
+    return render (request, 'Users/contacts.html')
+
+def perfil(request):
+    return render (request, 'Users/perfil.html')

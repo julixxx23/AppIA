@@ -30,4 +30,7 @@ urlpatterns = [
 
     ## USER
     path('user_home/', views.user_home, name='user_home'),
+    path('user_chat', views.chat, name='chat'),
+    path('user_contactos', views.contactos, name='contactos'),
+    path('user_perfil', views.perfil, name='perfil'),
 ]
