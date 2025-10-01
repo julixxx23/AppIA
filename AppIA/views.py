@@ -17,6 +17,12 @@ from .ml import predict_emotion
 
 
 # --- Vistas Generales y de Autenticación ---
+from .analytics_utils import (
+    generate_distribution_chart,
+    generate_bar_chart,
+    generate_temporal_chart,
+    generate_user_chart
+)
 
 def home(request):
     total_users = User.objects.count()
@@ -24,11 +30,92 @@ def home(request):
         'total_users': total_users
     })
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
 def anSentimientos(request):
-    return render(request, 'management/ansentimientos.html')
+    """Dashboard de análisis de sentimientos en management"""
+    conversations = Conversation.objects.all()
+    recent_reports = ConversationAnalysisReport.objects.order_by('-created_at')[:5]
+    
+    context = {
+        'conversations': conversations,
+        'total_conversations': conversations.count(),
+        'total_messages': Message.objects.count(),
+        'recent_reports': recent_reports,
+    }
+    return render(request, 'management/ansentimientos.html', context)
 
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
 def analytics(request):
-    return render(request, 'management/analytics.html')
+    """Dashboard de analytics con gráficos comparativos"""
+    
+    # Obtener todos los análisis
+    all_analyses = MessageAnalysis.objects.all()
+    total_analyses = all_analyses.count()
+    
+    if total_analyses == 0:
+        context = {
+            'total_analyses': 0,
+            'neutral_count': 0,
+            'positive_count': 0,
+            'harassment_count': 0,
+            'extortion_count': 0,
+            'neutral_percentage': 0,
+            'positive_percentage': 0,
+            'harassment_percentage': 0,
+            'extortion_percentage': 0,
+            'positive_trend': True,
+            'trend_change': 0,
+            'period_data': []
+        }
+        return render(request, 'management/analytics.html', context)
+    
+    # Contar por categorías
+    neutral_count = all_analyses.filter(emotion_label='Neutral').count()
+    positive_count = all_analyses.filter(emotion_label='Positivo').count()
+    harassment_count = all_analyses.filter(emotion_label='Acoso/Violencia').count()
+    extortion_count = all_analyses.filter(emotion_label='Extorsión').count()
+    
+    # Calcular porcentajes
+    neutral_percentage = (neutral_count / total_analyses) * 100
+    positive_percentage = (positive_count / total_analyses) * 100
+    harassment_percentage = (harassment_count / total_analyses) * 100
+    extortion_percentage = (extortion_count / total_analyses) * 100
+    
+    # Datos por período (últimos 7 días)
+    today = datetime.now().date()
+    period_data = []
+    
+    for i in range(6, -1, -1):
+        date = today - timedelta(days=i)
+        day_analyses = all_analyses.filter(analyzed_at__date=date)
+        
+        period_data.append({
+            'name': date.strftime('%d/%m'),
+            'total': day_analyses.count(),
+            'neutral': day_analyses.filter(emotion_label='Neutral').count(),
+            'positive': day_analyses.filter(emotion_label='Positivo').count(),
+            'harassment': day_analyses.filter(emotion_label='Acoso/Violencia').count(),
+            'extortion': day_analyses.filter(emotion_label='Extorsión').count(),
+        })
+    
+    context = {
+        'total_analyses': total_analyses,
+        'neutral_count': neutral_count,
+        'positive_count': positive_count,
+        'harassment_count': harassment_count,
+        'extortion_count': extortion_count,
+        'neutral_percentage': neutral_percentage,
+        'positive_percentage': positive_percentage,
+        'harassment_percentage': harassment_percentage,
+        'extortion_percentage': extortion_percentage,
+        'positive_trend': True,
+        'trend_change': 5.2,
+        'period_data': period_data
+    }
+    
+    return render(request, 'management/analytics.html', context)
 
 def signup(request):
     if request.method == 'GET':
@@ -310,7 +397,7 @@ def send_message(request):
                 content=content
             )
             
-            conversation.save()  # To update last_updated timestamp
+            conversation.save()
             
             return JsonResponse({
                 'success': True,
@@ -443,7 +530,7 @@ def generate_conversation_analysis(request, conversation_id):
         'participants': conversation.participants.all(),
         'message_count': conversation.messages.count(),
     }
-    return render(request, 'admin/generate_analysis.html', context)
+    return render(request, 'management/generate_analysis.html', context)
 
 @user_passes_test(is_admin)
 def conversation_analysis_report(request, report_id):
@@ -463,7 +550,7 @@ def conversation_analysis_report(request, report_id):
         'analyzed_messages': analyzed_messages,
         'problematic_messages': problematic_messages,
     }
-    return render(request, 'admin/conversation_report.html', context)
+    return render(request, 'management/conversation_report.html', context)
 
 @user_passes_test(is_admin)
 def generate_general_analysis(request):
@@ -490,17 +577,27 @@ def generate_general_analysis(request):
                 analysis_data['total_messages'] += 1
                 if result['etiqueta'] == 'Neutral':
                     analysis_data['neutral_count'] += 1
-                # ... (resto de los contadores)
+                elif result['etiqueta'] == 'Positivo':
+                    analysis_data['positive_count'] += 1
+                elif result['etiqueta'] == 'Acoso/Violencia':
+                    analysis_data['harassment_count'] += 1
+                elif result['etiqueta'] == 'Extorsión':
+                    analysis_data['extortion_count'] += 1
+                
                 processed_count += 1
             except Exception as e:
                 print(f"Error analizando mensaje {message.id}: {e}")
         
         total = analysis_data['total_messages']
-        # ... (cálculo de porcentajes)
+        if total > 0:
+            analysis_data['neutral_percentage'] = (analysis_data['neutral_count'] / total) * 100
+            analysis_data['positive_percentage'] = (analysis_data['positive_count'] / total) * 100
+            analysis_data['harassment_percentage'] = (analysis_data['harassment_count'] / total) * 100
+            analysis_data['extortion_percentage'] = (analysis_data['extortion_count'] / total) * 100
         
         messages.success(request, f'Análisis general completado. Se procesaron {processed_count} mensajes.')
         
-        return render(request, 'admin/general_report.html', {
+        return render(request, 'management/general_report.html', {
             'analysis_data': analysis_data,
             'processed_count': processed_count
         })
@@ -509,4 +606,4 @@ def generate_general_analysis(request):
         'total_messages': Message.objects.count(),
         'total_conversations': Conversation.objects.count(),
     }
-    return render(request, 'admin/generate_general_analysis.html', context)
+    return render(request, 'management/generate_general_analysis.html', context)

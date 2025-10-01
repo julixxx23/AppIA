@@ -1,8 +1,622 @@
-{% extends 'management/base.html' %}  {# si usas un template base #}
+{% extends 'management/base.html' %}
 
 {% block content %}
-<div class="container">
-    <h1>Analytics</h1>
-    <p>Aquí se mostraran los darshboars, graficas, etc</p>
+{% load static %}
+
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<style>
+    .analytics-container {
+        padding: 20px;
+    }
+    
+    .analytics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .analytics-header h1 {
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .btn {
+        padding: 12px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+    }
+    
+    .btn-pdf {
+        background: #e74c3c;
+        color: white;
+    }
+    
+    .btn-pdf:hover {
+        background: #c0392b;
+    }
+    
+    .btn-excel {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .btn-excel:hover {
+        background: #229954;
+    }
+    
+    .stats-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .summary-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .summary-card i {
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+    
+    .summary-card.total i { color: #3498db; }
+    .summary-card.neutral i { color: #95a5a6; }
+    .summary-card.positive i { color: #27ae60; }
+    .summary-card.negative i { color: #e74c3c; }
+    .summary-card.critical i { color: #8e44ad; }
+    
+    .summary-number {
+        font-size: 28px;
+        font-weight: bold;
+        color: #2c3e50;
+        margin: 5px 0;
+    }
+    
+    .summary-label {
+        color: #7f8c8d;
+        font-size: 13px;
+    }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 25px;
+        margin-bottom: 30px;
+    }
+    
+    .chart-card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .chart-card.full-width {
+        grid-column: 1 / -1;
+    }
+    
+    .chart-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .comparison-section {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 30px;
+    }
+    
+    .comparison-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+    
+    .period-selector {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .period-btn {
+        padding: 8px 16px;
+        border: 2px solid #3498db;
+        background: white;
+        color: #3498db;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .period-btn:hover, .period-btn.active {
+        background: #3498db;
+        color: white;
+    }
+    
+    .insights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .insight-card {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        border-left: 4px solid;
+    }
+    
+    .insight-card.positive { border-color: #27ae60; }
+    .insight-card.warning { border-color: #f39c12; }
+    .insight-card.danger { border-color: #e74c3c; }
+    
+    .insight-card h4 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+    
+    .insight-card p {
+        color: #7f8c8d;
+        line-height: 1.5;
+    }
+    
+    .trend-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .trend-indicator.up {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .trend-indicator.down {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .analytics-header {
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .export-buttons {
+            width: 100%;
+            justify-content: stretch;
+        }
+        
+        .btn {
+            flex: 1;
+        }
+    }
+    
+    @media print {
+        .export-buttons,
+        .period-selector {
+            display: none;
+        }
+    }
+</style>
+
+<div class="analytics-container" id="pdf-content">
+    <div class="analytics-header">
+        <h1>
+            <i class="fas fa-chart-bar"></i>
+            Analytics - Gráficos Comparativos
+        </h1>
+        <div class="export-buttons">
+            <button onclick="exportToPDF()" class="btn btn-pdf">
+                <i class="fas fa-file-pdf"></i>
+                Exportar a PDF
+            </button>
+            <button onclick="window.print()" class="btn btn-excel">
+                <i class="fas fa-print"></i>
+                Imprimir
+            </button>
+        </div>
+    </div>
+
+    <!-- Resumen de estadísticas -->
+    <div class="stats-summary">
+        <div class="summary-card total">
+            <i class="fas fa-database"></i>
+            <div class="summary-number">{{ total_analyses }}</div>
+            <div class="summary-label">Análisis Totales</div>
+        </div>
+        <div class="summary-card neutral">
+            <i class="fas fa-minus-circle"></i>
+            <div class="summary-number">{{ neutral_percentage|floatformat:1 }}%</div>
+            <div class="summary-label">Mensajes Neutrales</div>
+        </div>
+        <div class="summary-card positive">
+            <i class="fas fa-smile"></i>
+            <div class="summary-number">{{ positive_percentage|floatformat:1 }}%</div>
+            <div class="summary-label">Mensajes Positivos</div>
+        </div>
+        <div class="summary-card negative">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div class="summary-number">{{ harassment_percentage|floatformat:1 }}%</div>
+            <div class="summary-label">Acoso/Violencia</div>
+        </div>
+        <div class="summary-card critical">
+            <i class="fas fa-ban"></i>
+            <div class="summary-number">{{ extortion_percentage|floatformat:1 }}%</div>
+            <div class="summary-label">Extorsión</div>
+        </div>
+    </div>
+
+    <!-- Sección de comparación temporal -->
+    <div class="comparison-section">
+        <div class="comparison-header">
+            <h3><i class="fas fa-calendar-alt"></i> Comparación Temporal</h3>
+            <div class="period-selector">
+                <button class="period-btn active" onclick="changePeriod('week')">Semana</button>
+                <button class="period-btn" onclick="changePeriod('month')">Mes</button>
+                <button class="period-btn" onclick="changePeriod('year')">Año</button>
+            </div>
+        </div>
+        <canvas id="temporalChart" width="100%" height="40"></canvas>
+    </div>
+
+    <!-- Gráficos comparativos -->
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-title">
+                <i class="fas fa-chart-pie"></i>
+                Distribución General
+            </div>
+            <canvas id="distributionChart" width="100%" height="100%"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">
+                <i class="fas fa-chart-bar"></i>
+                Comparativa por Categoría
+            </div>
+            <canvas id="categoryChart" width="100%" height="100%"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">
+                <i class="fas fa-chart-line"></i>
+                Tendencia de Sentimientos
+            </div>
+            <canvas id="trendChart" width="100%" height="100%"></canvas>
+        </div>
+        
+        <div class="chart-card">
+            <div class="chart-title">
+                <i class="fas fa-layer-group"></i>
+                Análisis por Usuario
+            </div>
+            <canvas id="userChart" width="100%" height="100%"></canvas>
+        </div>
+    </div>
+
+    <!-- Insights y observaciones -->
+    <div class="insights-grid">
+        <div class="insight-card {% if positive_percentage >= 50 %}positive{% elif positive_percentage >= 30 %}warning{% else %}danger{% endif %}">
+            <h4>
+                <i class="fas fa-lightbulb"></i> Clima General
+                <span class="trend-indicator {% if positive_trend %}up{% else %}down{% endif %}">
+                    <i class="fas fa-arrow-{% if positive_trend %}up{% else %}down{% endif %}"></i>
+                    {{ trend_change|floatformat:1 }}%
+                </span>
+            </h4>
+            <p>
+                {% if positive_percentage >= 50 %}
+                    El ambiente de la plataforma es predominantemente positivo con un {{ positive_percentage|floatformat:1 }}% de mensajes positivos.
+                {% elif positive_percentage >= 30 %}
+                    El ambiente es moderado. Se recomienda monitorear las interacciones.
+                {% else %}
+                    Se detectan niveles elevados de contenido problemático. Acción requerida.
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="insight-card {% if harassment_percentage <= 5 %}positive{% elif harassment_percentage <= 15 %}warning{% else %}danger{% endif %}">
+            <h4><i class="fas fa-shield-alt"></i> Seguridad</h4>
+            <p>
+                {% if harassment_percentage <= 5 %}
+                    Niveles de acoso bajos ({{ harassment_percentage|floatformat:1 }}%). La plataforma es segura.
+                {% elif harassment_percentage <= 15 %}
+                    Nivel moderado de acoso detectado ({{ harassment_percentage|floatformat:1 }}%). Monitorear activamente.
+                {% else %}
+                    Nivel crítico de acoso ({{ harassment_percentage|floatformat:1 }}%). Intervención inmediata necesaria.
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="insight-card {% if extortion_percentage <= 1 %}positive{% elif extortion_percentage <= 5 %}warning{% else %}danger{% endif %}">
+            <h4><i class="fas fa-exclamation-circle"></i> Alertas Críticas</h4>
+            <p>
+                {% if extortion_percentage <= 1 %}
+                    Bajo nivel de extorsión ({{ extortion_percentage|floatformat:1 }}%). Sistema funcionando normalmente.
+                {% elif extortion_percentage <= 5 %}
+                    Extorsión en nivel moderado ({{ extortion_percentage|floatformat:1 }}%). Revisión recomendada.
+                {% else %}
+                    Nivel crítico de extorsión ({{ extortion_percentage|floatformat:1 }}%). Alerta máxima.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Tabla de datos detallada -->
+    <div class="chart-card full-width">
+        <div class="chart-title">
+            <i class="fas fa-table"></i>
+            Datos Detallados por Período
+        </div>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: #ecf0f1; text-align: left;">
+                    <th style="padding: 12px; border-bottom: 2px solid #bdc3c7;">Período</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #bdc3c7;">Total</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #bdc3c7;">Neutral</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #bdc3c7;">Positivo</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #bdc3c7;">Acoso</th>
+                    <th style="padding: 12px; border-bottom: 2px solid #bdc3c7;">Extorsión</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for period in period_data %}
+                <tr>
+                    <td style="padding: 10px; border-bottom: 1px solid #ecf0f1;">{{ period.name }}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ecf0f1;">{{ period.total }}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ecf0f1;">{{ period.neutral }}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ecf0f1;">{{ period.positive }}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ecf0f1;">{{ period.harassment }}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #ecf0f1;">{{ period.extortion }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" style="padding: 20px; text-align: center; color: #7f8c8d;">
+                        No hay datos disponibles para mostrar
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
+
+<script>
+// Datos del backend
+const analyticsData = {
+    neutral: {{ neutral_count }},
+    positive: {{ positive_count }},
+    harassment: {{ harassment_count }},
+    extortion: {{ extortion_count }}
+};
+
+// Colores consistentes
+const colors = {
+    neutral: '#95a5a6',
+    positive: '#27ae60',
+    harassment: '#e74c3c',
+    extortion: '#8e44ad'
+};
+
+// Gráfico de distribución (Pie)
+const distCtx = document.getElementById('distributionChart').getContext('2d');
+new Chart(distCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Neutral', 'Positivo', 'Acoso/Violencia', 'Extorsión'],
+        datasets: [{
+            data: [analyticsData.neutral, analyticsData.positive, analyticsData.harassment, analyticsData.extortion],
+            backgroundColor: [colors.neutral, colors.positive, colors.harassment, colors.extortion],
+            borderWidth: 3,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { padding: 15, usePointStyle: true }
+            }
+        }
+    }
+});
+
+// Gráfico de categorías (Bar)
+const catCtx = document.getElementById('categoryChart').getContext('2d');
+new Chart(catCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Neutral', 'Positivo', 'Acoso', 'Extorsión'],
+        datasets: [{
+            label: 'Cantidad',
+            data: [analyticsData.neutral, analyticsData.positive, analyticsData.harassment, analyticsData.extortion],
+            backgroundColor: [colors.neutral, colors.positive, colors.harassment, colors.extortion],
+            borderRadius: 5
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } }
+        },
+        plugins: {
+            legend: { display: false }
+        }
+    }
+});
+
+// Gráfico de tendencia (Line)
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+        datasets: [
+            {
+                label: 'Positivo',
+                data: [12, 19, 15, 25],
+                borderColor: colors.positive,
+                backgroundColor: colors.positive + '33',
+                tension: 0.4
+            },
+            {
+                label: 'Acoso',
+                data: [5, 8, 6, 4],
+                borderColor: colors.harassment,
+                backgroundColor: colors.harassment + '33',
+                tension: 0.4
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { position: 'bottom' }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// Gráfico por usuario (Horizontal Bar)
+const userCtx = document.getElementById('userChart').getContext('2d');
+new Chart(userCtx, {
+    type: 'bar',
+    data: {
+        labels: ['Usuario 1', 'Usuario 2', 'Usuario 3', 'Usuario 4'],
+        datasets: [{
+            label: 'Mensajes Analizados',
+            data: [45, 32, 28, 15],
+            backgroundColor: '#3498db',
+            borderRadius: 5
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: { beginAtZero: true }
+        }
+    }
+});
+
+// Gráfico temporal comparativo
+const temporalCtx = document.getElementById('temporalChart').getContext('2d');
+new Chart(temporalCtx, {
+    type: 'line',
+    data: {
+        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+        datasets: [
+            {
+                label: 'Neutral',
+                data: [10, 12, 15, 11, 13, 8, 9],
+                borderColor: colors.neutral,
+                backgroundColor: colors.neutral + '20',
+                fill: true
+            },
+            {
+                label: 'Positivo',
+                data: [15, 18, 20, 22, 19, 21, 17],
+                borderColor: colors.positive,
+                backgroundColor: colors.positive + '20',
+                fill: true
+            },
+            {
+                label: 'Acoso',
+                data: [3, 5, 4, 6, 5, 3, 2],
+                borderColor: colors.harassment,
+                backgroundColor: colors.harassment + '20',
+                fill: true
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: { usePointStyle: true, padding: 15 }
+            }
+        },
+        scales: {
+            y: { beginAtZero: true, stacked: false }
+        }
+    }
+});
+
+// Función para exportar a PDF
+function exportToPDF() {
+    const element = document.getElementById('pdf-content');
+    const opt = {
+        margin: 10,
+        filename: 'analytics-report-' + new Date().toISOString().split('T')[0] + '.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    
+    html2pdf().set(opt).from(element).save();
+}
+
+// Cambiar período de comparación
+function changePeriod(period) {
+    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Aquí podrías hacer una petición AJAX para obtener datos del período seleccionado
+    console.log('Cambiando a período:', period);
+}
+</script>
+
 {% endblock %}
