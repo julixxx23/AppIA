@@ -303,6 +303,10 @@
     {% endif %}
 
     <div style="text-align: center; margin-top: 30px;">
+        <a href="{% url 'export_conversation_pdf' report.id %}" class="btn btn-primary" style="background: #3498db;">
+            <i class="fas fa-file-pdf"></i>
+            Exportar PDF
+        </a>
         <a href="{% url 'anSentimientos' %}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i>
             Volver al Dashboard

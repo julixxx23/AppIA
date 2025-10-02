@@ -256,16 +256,23 @@
         
         const csrftoken = getCookie('csrftoken');
         
+        // Variable para prevenir envíos duplicados
+        let isSending = false;
+
         // Función para enviar mensaje
         function sendMessage() {
+            // Prevenir múltiples envíos simultáneos
+            if (isSending) return;
+
             const input = document.getElementById('messageInput');
             const content = input.value.trim();
-            
+
             if (!content) return;
-            
+
             const sendBtn = document.getElementById('sendBtn');
+            isSending = true;
             sendBtn.disabled = true;
-            
+
             fetch('{% url "send_message" %}', {
                 method: 'POST',
                 headers: {
@@ -283,11 +290,11 @@
                     // Limpiar input
                     input.value = '';
                     adjustTextareaHeight(input);
-                    
+
                     // Agregar mensaje al chat
                     addMessageToChat(data);
                     lastMessageId = data.message_id;
-                    
+
                     // Scroll hacia abajo
                     scrollToBottom();
                 } else {
@@ -299,6 +306,7 @@
                 alert('Error al enviar mensaje');
             })
             .finally(() => {
+                isSending = false;
                 sendBtn.disabled = false;
                 input.focus();
             });

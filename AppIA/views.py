@@ -5,24 +5,34 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.db import IntegrityError
-from django.db.models import Q, Max
-from django.http import JsonResponse
+from django.db.models import Q, Max, Count
+from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django import forms
 import json
+from datetime import datetime, timedelta
+
+# --- Imports de ReportLab para PDF ---
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from io import BytesIO
 
 # --- Imports de la Aplicación ---
 from .models import Conversation, Message, MessageAnalysis, ConversationAnalysisReport
 from .ml import predict_emotion
-
-
-# --- Vistas Generales y de Autenticación ---
 from .analytics_utils import (
     generate_distribution_chart,
     generate_bar_chart,
     generate_temporal_chart,
     generate_user_chart
 )
+
+
+# --- Vistas Generales y de Autenticación ---
 
 def home(request):
     total_users = User.objects.count()
@@ -48,7 +58,7 @@ def anSentimientos(request):
 @login_required
 @user_passes_test(lambda u: u.is_superuser or u.is_staff)
 def analytics(request):
-    """Dashboard de analytics con gráficos comparativos"""
+    """Dashboard de analytics con gráficos generados por Matplotlib"""
     
     # Obtener todos los análisis
     all_analyses = MessageAnalysis.objects.all()
@@ -67,7 +77,11 @@ def analytics(request):
             'extortion_percentage': 0,
             'positive_trend': True,
             'trend_change': 0,
-            'period_data': []
+            'period_data': [],
+            'distribution_chart': None,
+            'bar_chart': None,
+            'temporal_chart': None,
+            'user_chart': None
         }
         return render(request, 'management/analytics.html', context)
     
@@ -78,10 +92,30 @@ def analytics(request):
     extortion_count = all_analyses.filter(emotion_label='Extorsión').count()
     
     # Calcular porcentajes
-    neutral_percentage = (neutral_count / total_analyses) * 100
-    positive_percentage = (positive_count / total_analyses) * 100
-    harassment_percentage = (harassment_count / total_analyses) * 100
-    extortion_percentage = (extortion_count / total_analyses) * 100
+    analysis_data = {
+        'neutral_count': neutral_count,
+        'positive_count': positive_count,
+        'harassment_count': harassment_count,
+        'extortion_count': extortion_count,
+        'neutral_percentage': (neutral_count / total_analyses) * 100,
+        'positive_percentage': (positive_count / total_analyses) * 100,
+        'harassment_percentage': (harassment_count / total_analyses) * 100,
+        'extortion_percentage': (extortion_count / total_analyses) * 100
+    }
+    
+    # Top 5 usuarios más activos
+    top_users = Message.objects.values('sender__username').annotate(
+        count=Count('id')
+    ).order_by('-count')[:5]
+    
+    top_users_data = [{'username': user['sender__username'], 'count': user['count']} 
+                      for user in top_users]
+    
+    # Generar gráficas con Matplotlib
+    distribution_chart = generate_distribution_chart(analysis_data)
+    bar_chart = generate_bar_chart(analysis_data)
+    temporal_chart = generate_temporal_chart(all_analyses)
+    user_chart = generate_user_chart(top_users_data) if top_users_data else None
     
     # Datos por período (últimos 7 días)
     today = datetime.now().date()
@@ -106,16 +140,231 @@ def analytics(request):
         'positive_count': positive_count,
         'harassment_count': harassment_count,
         'extortion_count': extortion_count,
-        'neutral_percentage': neutral_percentage,
-        'positive_percentage': positive_percentage,
-        'harassment_percentage': harassment_percentage,
-        'extortion_percentage': extortion_percentage,
+        'neutral_percentage': analysis_data['neutral_percentage'],
+        'positive_percentage': analysis_data['positive_percentage'],
+        'harassment_percentage': analysis_data['harassment_percentage'],
+        'extortion_percentage': analysis_data['extortion_percentage'],
         'positive_trend': True,
         'trend_change': 5.2,
-        'period_data': period_data
+        'period_data': period_data,
+        'distribution_chart': distribution_chart,
+        'bar_chart': bar_chart,
+        'temporal_chart': temporal_chart,
+        'user_chart': user_chart
     }
     
     return render(request, 'management/analytics.html', context)
+
+@login_required
+@user_passes_test(lambda u: u.is_superuser or u.is_staff)
+def export_analytics_pdf(request):
+    """Exportar reporte de analytics en formato PDF"""
+    
+    # Crear el objeto HttpResponse con el tipo MIME apropiado para PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="analytics_report_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    # Crear el buffer
+    buffer = BytesIO()
+    
+    # Crear el documento PDF
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Contenedor para los elementos del PDF
+    elements = []
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=30,
+        alignment=TA_CENTER
+    )
+    
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#34495e'),
+        spaceAfter=12,
+        spaceBefore=12
+    )
+    
+    # Obtener datos (mismo código que en la vista analytics)
+    all_analyses = MessageAnalysis.objects.all()
+    total_analyses = all_analyses.count()
+    
+    # Título del reporte
+    title = Paragraph("Reporte de Analytics - Análisis de Sentimientos", title_style)
+    elements.append(title)
+    
+    # Fecha de generación
+    date_text = Paragraph(
+        f"<b>Fecha de generación:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}",
+        styles['Normal']
+    )
+    elements.append(date_text)
+    elements.append(Spacer(1, 20))
+    
+    if total_analyses == 0:
+        no_data = Paragraph("No hay datos de análisis disponibles.", styles['Normal'])
+        elements.append(no_data)
+    else:
+        # Contar por categorías
+        neutral_count = all_analyses.filter(emotion_label='Neutral').count()
+        positive_count = all_analyses.filter(emotion_label='Positivo').count()
+        harassment_count = all_analyses.filter(emotion_label='Acoso/Violencia').count()
+        extortion_count = all_analyses.filter(emotion_label='Extorsión').count()
+        
+        # Calcular porcentajes
+        neutral_percentage = (neutral_count / total_analyses) * 100
+        positive_percentage = (positive_count / total_analyses) * 100
+        harassment_percentage = (harassment_count / total_analyses) * 100
+        extortion_percentage = (extortion_count / total_analyses) * 100
+        
+        # Resumen general
+        elements.append(Paragraph("Resumen General", heading_style))
+        
+        summary_data = [
+            ['Métrica', 'Valor'],
+            ['Total de análisis', str(total_analyses)],
+            ['Mensajes neutrales', f"{neutral_count} ({neutral_percentage:.1f}%)"],
+            ['Mensajes positivos', f"{positive_count} ({positive_percentage:.1f}%)"],
+            ['Mensajes de acoso/violencia', f"{harassment_count} ({harassment_percentage:.1f}%)"],
+            ['Mensajes de extorsión', f"{extortion_count} ({extortion_percentage:.1f}%)"],
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 2.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+        ]))
+        
+        elements.append(summary_table)
+        elements.append(Spacer(1, 30))
+        
+        # Distribución por categoría
+        elements.append(Paragraph("Distribución por Categoría", heading_style))
+        
+        category_data = [
+            ['Categoría', 'Cantidad', 'Porcentaje'],
+            ['Neutral', str(neutral_count), f"{neutral_percentage:.2f}%"],
+            ['Positivo', str(positive_count), f"{positive_percentage:.2f}%"],
+            ['Acoso/Violencia', str(harassment_count), f"{harassment_percentage:.2f}%"],
+            ['Extorsión', str(extortion_count), f"{extortion_percentage:.2f}%"],
+        ]
+        
+        category_table = Table(category_data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+        category_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ecc71')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ]))
+        
+        elements.append(category_table)
+        elements.append(Spacer(1, 30))
+        
+        # Top 5 usuarios más activos
+        top_users = Message.objects.values('sender__username').annotate(
+            count=Count('id')
+        ).order_by('-count')[:5]
+        
+        if top_users:
+            elements.append(Paragraph("Top 5 Usuarios Más Activos", heading_style))
+            
+            users_data = [['Usuario', 'Mensajes']]
+            for user in top_users:
+                users_data.append([user['sender__username'], str(user['count'])])
+            
+            users_table = Table(users_data, colWidths=[3*inch, 2*inch])
+            users_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e74c3c')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 11),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+            ]))
+            
+            elements.append(users_table)
+            elements.append(Spacer(1, 30))
+        
+        # Análisis temporal (últimos 7 días)
+        elements.append(Paragraph("Análisis Temporal (Últimos 7 Días)", heading_style))
+        
+        today = datetime.now().date()
+        temporal_data = [['Fecha', 'Total', 'Neutral', 'Positivo', 'Acoso', 'Extorsión']]
+        
+        for i in range(6, -1, -1):
+            date = today - timedelta(days=i)
+            day_analyses = all_analyses.filter(analyzed_at__date=date)
+            temporal_data.append([
+                date.strftime('%d/%m/%Y'),
+                str(day_analyses.count()),
+                str(day_analyses.filter(emotion_label='Neutral').count()),
+                str(day_analyses.filter(emotion_label='Positivo').count()),
+                str(day_analyses.filter(emotion_label='Acoso/Violencia').count()),
+                str(day_analyses.filter(emotion_label='Extorsión').count()),
+            ])
+        
+        temporal_table = Table(temporal_data, colWidths=[1.3*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.9*inch])
+        temporal_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#9b59b6')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+        ]))
+        
+        elements.append(temporal_table)
+        
+        # Pie de página
+        elements.append(Spacer(1, 50))
+        footer = Paragraph(
+            "<i>Este reporte fue generado automáticamente por el Sistema de Análisis de Sentimientos</i>",
+            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+        )
+        elements.append(footer)
+    
+    # Construir el PDF
+    doc.build(elements)
+    
+    # Obtener el valor del buffer y escribirlo en la respuesta
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+    
+    return response
 
 def signup(request):
     if request.method == 'GET':
@@ -162,8 +411,141 @@ def signin(request):
             })
 
 # --- Lógica de Usuario ---
+@login_required
 def user_home(request):
-    return render(request, 'Users/home_user.html')
+    """Vista del home del usuario con estadísticas personales"""
+
+    # Obtener conversaciones del usuario
+    user_conversations = request.user.conversations.count()
+
+    # Obtener contactos (usuarios activos excepto el usuario actual y admins)
+    total_contacts = User.objects.exclude(id=request.user.id).filter(
+        is_active=True,
+        is_staff=False,
+        is_superuser=False
+    ).count()
+
+    # Calcular estado de ánimo basado en análisis de sentimientos
+    user_analyses = MessageAnalysis.objects.filter(
+        message__sender=request.user
+    )
+
+    total_analyses = user_analyses.count()
+    mood_score = 50  # Default: neutral
+
+    if total_analyses > 0:
+        # Calcular porcentajes
+        positive_count = user_analyses.filter(emotion_label='Positivo').count()
+        neutral_count = user_analyses.filter(emotion_label='Neutral').count()
+        harassment_count = user_analyses.filter(emotion_label='Acoso/Violencia').count()
+        extortion_count = user_analyses.filter(emotion_label='Extorsión').count()
+
+        # Calcular score ponderado (0-100)
+        # Positivo: +100, Neutral: +50, Negativos: 0
+        total_score = (positive_count * 100) + (neutral_count * 50) + (harassment_count * 0) + (extortion_count * 0)
+        mood_score = int(total_score / total_analyses) if total_analyses > 0 else 50
+
+    context = {
+        'total_conversations': user_conversations,
+        'total_contacts': total_contacts,
+        'mood_score': mood_score,
+    }
+
+    return render(request, 'Users/home_user.html', context)
+
+@login_required
+def contactos(request):
+    """Vista de contactos del usuario"""
+    # Obtener todos los usuarios excepto el usuario actual
+    all_users = User.objects.exclude(id=request.user.id).filter(is_active=True)
+
+    # Obtener usuarios con los que ya tiene conversaciones
+    conversations = request.user.conversations.all()
+    users_with_conversations = set()
+    for conversation in conversations:
+        other_user = conversation.get_other_participant(request.user)
+        if other_user:
+            users_with_conversations.add(other_user.id)
+
+    context = {
+        'all_users': all_users,
+        'users_with_conversations': users_with_conversations,
+        'total_contacts': all_users.count()
+    }
+    return render(request, 'Users/contacts.html', context)
+
+@login_required
+def perfil(request):
+    """Vista del perfil del usuario con edición"""
+
+    if request.method == 'POST':
+        # Actualizar información personal
+        request.user.first_name = request.POST.get('first_name', '')
+        request.user.last_name = request.POST.get('last_name', '')
+        request.user.email = request.POST.get('email', '')
+
+        # Cambiar contraseña si se proporciona
+        current_password = request.POST.get('current_password', '')
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+
+        if current_password and new_password:
+            # Verificar contraseña actual
+            if not request.user.check_password(current_password):
+                messages.error(request, 'La contraseña actual es incorrecta')
+            elif new_password != confirm_password:
+                messages.error(request, 'Las contraseñas nuevas no coinciden')
+            elif len(new_password) < 6:
+                messages.error(request, 'La contraseña debe tener al menos 6 caracteres')
+            else:
+                request.user.set_password(new_password)
+                request.user.save()
+                # Re-autenticar al usuario
+                from django.contrib.auth import update_session_auth_hash
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Perfil y contraseña actualizados exitosamente')
+                return redirect('perfil')
+
+        request.user.save()
+        messages.success(request, 'Perfil actualizado exitosamente')
+        return redirect('perfil')
+
+    # Estadísticas del usuario
+    user_conversations = request.user.conversations.count()
+    user_messages = request.user.sent_messages.count()
+
+    # Obtener análisis de mensajes del usuario
+    user_analyses = MessageAnalysis.objects.filter(
+        message__sender=request.user
+    )
+
+    # Calcular distribución emocional
+    total_analyses = user_analyses.count()
+    emotion_stats = {
+        'neutral': 0,
+        'positive': 0,
+        'harassment': 0,
+        'extortion': 0
+    }
+
+    if total_analyses > 0:
+        neutral_count = user_analyses.filter(emotion_label='Neutral').count()
+        positive_count = user_analyses.filter(emotion_label='Positivo').count()
+        harassment_count = user_analyses.filter(emotion_label='Acoso/Violencia').count()
+        extortion_count = user_analyses.filter(emotion_label='Extorsión').count()
+
+        emotion_stats['neutral'] = int((neutral_count / total_analyses) * 100)
+        emotion_stats['positive'] = int((positive_count / total_analyses) * 100)
+        emotion_stats['harassment'] = int((harassment_count / total_analyses) * 100)
+        emotion_stats['extortion'] = int((extortion_count / total_analyses) * 100)
+
+    context = {
+        'user_conversations': user_conversations,
+        'user_messages': user_messages,
+        'total_analyses': total_analyses,
+        'emotion_stats': emotion_stats
+    }
+    return render(request, 'Users/perfil.html', context)
 
 
 # --- Funciones y Formularios de Administración ---
@@ -324,11 +706,17 @@ def chat_list(request):
     conversations = request.user.conversations.annotate(
         last_message_time=Max('messages__created_at')
     ).order_by('-last_message_time')
-    
+
+    # Agregar el otro participante a cada conversación
+    conversations_with_other = []
+    for conversation in conversations:
+        conversation.other_participant = conversation.get_other_participant(request.user)
+        conversations_with_other.append(conversation)
+
     users = User.objects.exclude(id=request.user.id).filter(is_active=True)
-    
+
     context = {
-        'conversations': conversations,
+        'conversations': conversations_with_other,
         'users': users
     }
     return render(request, 'chat/chat_list.html', context)
@@ -539,11 +927,11 @@ def conversation_analysis_report(request, report_id):
         conversation=report.conversation,
         analysis__isnull=False
     ).select_related('analysis', 'sender')
-    
+
     problematic_messages = analyzed_messages.filter(
         analysis__emotion_label__in=['Acoso/Violencia', 'Extorsión']
     )
-    
+
     context = {
         'report': report,
         'conversation': report.conversation,
@@ -552,6 +940,193 @@ def conversation_analysis_report(request, report_id):
     }
     return render(request, 'management/conversation_report.html', context)
 
+@user_passes_test(is_admin)
+def export_conversation_pdf(request, report_id):
+    """Exportar reporte de conversación específica en formato PDF"""
+
+    report = get_object_or_404(ConversationAnalysisReport, id=report_id)
+    conversation = report.conversation
+
+    # Crear el objeto HttpResponse con el tipo MIME apropiado para PDF
+    participants_names = "_".join([p.username for p in conversation.participants.all()])
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="conversation_{participants_names}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+
+    # Crear el buffer
+    buffer = BytesIO()
+
+    # Crear el documento PDF
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+
+    # Contenedor para los elementos del PDF
+    elements = []
+
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=22,
+        textColor=colors.HexColor('#2c3e50'),
+        spaceAfter=20,
+        alignment=TA_CENTER
+    )
+
+    heading_style = ParagraphStyle(
+        'CustomHeading',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#34495e'),
+        spaceAfter=12,
+        spaceBefore=12
+    )
+
+    # Título del reporte
+    title = Paragraph(f"Reporte de Análisis de Conversación", title_style)
+    elements.append(title)
+
+    # Participantes
+    participants = ", ".join([user.username for user in conversation.participants.all()])
+    participants_text = Paragraph(
+        f"<b>Participantes:</b> {participants}",
+        styles['Normal']
+    )
+    elements.append(participants_text)
+
+    # Fecha de generación
+    date_text = Paragraph(
+        f"<b>Fecha de generación:</b> {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}",
+        styles['Normal']
+    )
+    elements.append(date_text)
+
+    # Generado por
+    created_by_text = Paragraph(
+        f"<b>Generado por:</b> {report.created_by.username}",
+        styles['Normal']
+    )
+    elements.append(created_by_text)
+    elements.append(Spacer(1, 20))
+
+    # Resumen general
+    elements.append(Paragraph("Resumen General", heading_style))
+
+    summary_data = [
+        ['Métrica', 'Valor'],
+        ['Total de mensajes analizados', str(report.total_messages)],
+        ['Mensajes neutrales', f"{report.neutral_count} ({report.neutral_percentage:.1f}%)"],
+        ['Mensajes positivos', f"{report.positive_count} ({report.positive_percentage:.1f}%)"],
+        ['Mensajes de acoso/violencia', f"{report.harassment_count} ({report.harassment_percentage:.1f}%)"],
+        ['Mensajes de extorsión', f"{report.extortion_count} ({report.extortion_percentage:.1f}%)"],
+    ]
+
+    summary_table = Table(summary_data, colWidths=[3.5*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8f9fa')])
+    ]))
+
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+
+    # Distribución por categoría
+    elements.append(Paragraph("Distribución por Categoría", heading_style))
+
+    category_data = [
+        ['Categoría', 'Cantidad', 'Porcentaje'],
+        ['Neutral', str(report.neutral_count), f"{report.neutral_percentage:.2f}%"],
+        ['Positivo', str(report.positive_count), f"{report.positive_percentage:.2f}%"],
+        ['Acoso/Violencia', str(report.harassment_count), f"{report.harassment_percentage:.2f}%"],
+        ['Extorsión', str(report.extortion_count), f"{report.extortion_percentage:.2f}%"],
+    ]
+
+    category_table = Table(category_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+    category_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2ecc71')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 10),
+    ]))
+
+    elements.append(category_table)
+    elements.append(Spacer(1, 30))
+
+    # Mensajes problemáticos
+    problematic_messages = Message.objects.filter(
+        conversation=conversation,
+        analysis__isnull=False,
+        analysis__emotion_label__in=['Acoso/Violencia', 'Extorsión']
+    ).select_related('analysis', 'sender')
+
+    if problematic_messages.exists():
+        elements.append(Paragraph(f"Mensajes Problemáticos ({problematic_messages.count()})", heading_style))
+
+        for message in problematic_messages[:20]:  # Limitar a 20 mensajes
+            message_data = [
+                ['Remitente', message.sender.username],
+                ['Mensaje', message.content[:200]],  # Limitar a 200 caracteres
+                ['Clasificación', message.analysis.emotion_label],
+                ['Confianza', f"{message.analysis.confidence:.2f}"],
+            ]
+
+            message_table = Table(message_data, colWidths=[1.5*inch, 4*inch])
+            message_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ecf0f1')),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#bdc3c7')),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ]))
+
+            elements.append(message_table)
+            elements.append(Spacer(1, 10))
+
+        if problematic_messages.count() > 20:
+            elements.append(Paragraph(
+                f"<i>... y {problematic_messages.count() - 20} mensajes problemáticos más.</i>",
+                styles['Normal']
+            ))
+    else:
+        elements.append(Paragraph("Estado de la Conversación", heading_style))
+        elements.append(Paragraph(
+            "¡Excelente! No se detectaron mensajes problemáticos en esta conversación.",
+            styles['Normal']
+        ))
+
+    # Pie de página
+    elements.append(Spacer(1, 30))
+    footer = Paragraph(
+        "<i>Este reporte fue generado automáticamente por el Sistema de Análisis de Sentimientos</i>",
+        ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+    )
+    elements.append(footer)
+
+    # Construir el PDF
+    doc.build(elements)
+
+    # Obtener el valor del buffer y escribirlo en la respuesta
+    pdf = buffer.getvalue()
+    buffer.close()
+    response.write(pdf)
+
+    return response
 
 @user_passes_test(is_admin)
 def generate_general_analysis(request):
@@ -608,17 +1183,3 @@ def generate_general_analysis(request):
         'total_conversations': Conversation.objects.count(),
     }
     return render(request, 'management/generate_general_analysis.html', context)
-
-    ## USER LOGIC
-def user_home(request):
-    return render (request, 'Users/home_user.html')
-
-def chat(request):
-    return render (request, 'Users/chat.html')
-
-def contactos(request):
-    return render (request, 'Users/contacts.html')
-
-def perfil(request):
-    return render (request, 'Users/perfil.html')
-

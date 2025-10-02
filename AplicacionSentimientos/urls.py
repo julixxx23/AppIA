@@ -32,6 +32,8 @@ urlpatterns = [
     # URLs de Management - Análisis de Sentimientos (NUEVAS)
     path('management/ansentimientos/', views.anSentimientos, name='anSentimientos'),
     path('management/analytics/', views.analytics, name='analytics'),
+    path('management/analytics/export-pdf/', views.export_analytics_pdf, name='export_analytics_pdf'),
+    path('management/conversation/<int:report_id>/export-pdf/', views.export_conversation_pdf, name='export_conversation_pdf'),
     
     # URLs compartidas para análisis (usadas tanto por admin como management)
     path('analysis/conversation/<int:conversation_id>/generate/', 
@@ -48,7 +50,7 @@ urlpatterns = [
 
     # URLs de Usuario
     path('user_home/', views.user_home, name='user_home'),
-    path('user_chat', views.chat, name='chat'),
-    path('user_contactos', views.contactos, name='contactos'),
-    path('user_perfil', views.perfil, name='perfil'),
+    path('user_chat/', views.chat_list, name='chat'),
+    path('user_contactos/', views.contactos, name='contactos'),
+    path('user_perfil/', views.perfil, name='perfil'),
 ]

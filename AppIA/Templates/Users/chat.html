@@ -1,8 +1,474 @@
-{% extends 'Users/base_user.html' %}  
+{% extends 'Users/base_user.html' %}
+
+{% block page_title %}Mis Conversaciones{% endblock %}
+{% block page_subtitle %}Chatea con otros usuarios registrados{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Chats</h1>
-    <p>Aquí ira la implementación del chat</p>  {#JULIAN MODIFICAR ATENDRO DE DIV#}
+<style>
+    .chat-wrapper {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        overflow: hidden;
+        min-height: 70vh;
+    }
+
+    .chat-header-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-header-section h2 {
+        color: white;
+        margin: 0;
+        font-size: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .new-chat-btn {
+        background: #25d366;
+        color: white;
+        border: none;
+        padding: 12px 20px;
+        border-radius: 25px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 15px;
+        font-weight: 500;
+        transition: all 0.3s;
+        box-shadow: 0 4px 10px rgba(37, 211, 102, 0.3);
+    }
+
+    .new-chat-btn:hover {
+        background: #20ba5a;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(37, 211, 102, 0.4);
+    }
+
+    .conversations-container {
+        padding: 0;
+    }
+
+    .conversation-item {
+        display: flex;
+        align-items: center;
+        padding: 20px 30px;
+        border-bottom: 1px solid #f0f0f0;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+        color: inherit;
+    }
+
+    .conversation-item:hover {
+        background: #f8f9fa;
+        transform: translateX(5px);
+    }
+
+    .conversation-avatar {
+        width: 55px;
+        height: 55px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 15px;
+        font-size: 20px;
+        flex-shrink: 0;
+        box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
+    }
+
+    .conversation-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .conversation-name {
+        font-weight: 600;
+        margin-bottom: 5px;
+        color: #2c3e50;
+        font-size: 16px;
+    }
+
+    .conversation-preview {
+        color: #7f8c8d;
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .conversation-time {
+        color: #95a5a6;
+        font-size: 13px;
+        flex-shrink: 0;
+        margin-left: 15px;
+    }
+
+    .no-conversations {
+        text-align: center;
+        padding: 80px 20px;
+        color: #7f8c8d;
+    }
+
+    .no-conversations i {
+        font-size: 80px;
+        margin-bottom: 20px;
+        color: #dfe6e9;
+    }
+
+    .no-conversations h3 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(5px);
+    }
+
+    .modal-content {
+        background: white;
+        margin: 5% auto;
+        padding: 0;
+        width: 90%;
+        max-width: 550px;
+        border-radius: 15px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 20px 25px;
+        border-radius: 15px 15px 0 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h3 {
+        margin: 0;
+        font-size: 20px;
+    }
+
+    .close {
+        color: white;
+        font-size: 32px;
+        font-weight: normal;
+        cursor: pointer;
+        line-height: 1;
+        transition: transform 0.2s;
+    }
+
+    .close:hover {
+        transform: rotate(90deg);
+    }
+
+    .modal-body {
+        padding: 25px;
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    .search-box {
+        width: 100%;
+        padding: 14px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 30px;
+        font-size: 15px;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+
+    .search-box:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .user-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .user-item {
+        display: flex;
+        align-items: center;
+        padding: 15px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+    }
+
+    .user-item:hover {
+        background: #f8f9fa;
+        border-color: #667eea;
+        transform: translateX(5px);
+    }
+
+    .user-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        margin-right: 15px;
+        font-size: 16px;
+        flex-shrink: 0;
+    }
+
+    .user-details {
+        flex: 1;
+    }
+
+    .user-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 3px;
+    }
+
+    .user-username {
+        color: #95a5a6;
+        font-size: 13px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 30px;
+        color: #95a5a6;
+    }
+</style>
+
+<div class="chat-wrapper">
+    <div class="chat-header-section">
+        <h2>
+            <i class="fas fa-comments"></i>
+            Conversaciones
+        </h2>
+        <button class="new-chat-btn" onclick="openNewChatModal()">
+            <i class="fas fa-plus-circle"></i>
+            Nueva Conversación
+        </button>
+    </div>
+
+    <div class="conversations-container">
+        {% if conversations %}
+            {% for conversation in conversations %}
+                <a href="{% url 'chat_detail' conversation.id %}" class="conversation-item">
+                    <div class="conversation-avatar">
+                        {{ conversation.get_other_participant.username|first|upper }}
+                    </div>
+                    <div class="conversation-details">
+                        <div class="conversation-name">
+                            {{ conversation.get_other_participant.get_full_name|default:conversation.get_other_participant.username }}
+                        </div>
+                        <div class="conversation-preview">
+                            {% if conversation.last_message %}
+                                {% if conversation.last_message.sender == user %}
+                                    <strong>Tú:</strong>
+                                {% endif %}
+                                {{ conversation.last_message.content|truncatechars:60 }}
+                            {% else %}
+                                <em>Inicia la conversación...</em>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="conversation-time">
+                        {% if conversation.last_message %}
+                            {{ conversation.last_message.created_at|date:"d/m/Y H:i" }}
+                        {% endif %}
+                    </div>
+                </a>
+            {% endfor %}
+        {% else %}
+            <div class="no-conversations">
+                <i class="fas fa-comment-slash"></i>
+                <h3>No tienes conversaciones activas</h3>
+                <p>Inicia una nueva conversación para comenzar a chatear con otros usuarios</p>
+            </div>
+        {% endif %}
+    </div>
 </div>
+
+<!-- Modal Nueva Conversación -->
+<div id="newChatModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus"></i> Seleccionar Usuario</h3>
+            <span class="close" onclick="closeNewChatModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <input
+                type="text"
+                id="userSearch"
+                class="search-box"
+                placeholder="Buscar usuario por nombre o username..."
+                onkeyup="searchUsers()"
+            >
+            <div id="userList" class="user-list">
+                {% for user_item in users %}
+                    <div class="user-item" onclick="startConversation({{ user_item.id }})">
+                        <div class="user-avatar">{{ user_item.username|first|upper }}</div>
+                        <div class="user-details">
+                            <div class="user-name">
+                                {{ user_item.get_full_name|default:user_item.username }}
+                            </div>
+                            <div class="user-username">@{{ user_item.username }}</div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="empty-state">
+                        <i class="fas fa-users-slash"></i>
+                        <p>No hay usuarios disponibles</p>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openNewChatModal() {
+        document.getElementById('newChatModal').style.display = 'block';
+    }
+
+    function closeNewChatModal() {
+        document.getElementById('newChatModal').style.display = 'none';
+        document.getElementById('userSearch').value = '';
+        loadAllUsers();
+    }
+
+    function startConversation(userId) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "start_conversation" %}';
+
+        const csrfToken = document.createElement('input');
+        csrfToken.type = 'hidden';
+        csrfToken.name = 'csrfmiddlewaretoken';
+        csrfToken.value = '{{ csrf_token }}';
+
+        const userIdInput = document.createElement('input');
+        userIdInput.type = 'hidden';
+        userIdInput.name = 'user_id';
+        userIdInput.value = userId;
+
+        form.appendChild(csrfToken);
+        form.appendChild(userIdInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+
+    let searchTimeout;
+    function searchUsers() {
+        const query = document.getElementById('userSearch').value.trim();
+
+        clearTimeout(searchTimeout);
+
+        if (query.length < 2) {
+            loadAllUsers();
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`{% url 'search_users' %}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const userList = document.getElementById('userList');
+                    userList.innerHTML = '';
+
+                    if (data.users && data.users.length > 0) {
+                        data.users.forEach(user => {
+                            const userItem = document.createElement('div');
+                            userItem.className = 'user-item';
+                            userItem.onclick = () => startConversation(user.id);
+                            userItem.innerHTML = `
+                                <div class="user-avatar">${user.username.charAt(0).toUpperCase()}</div>
+                                <div class="user-details">
+                                    <div class="user-name">${user.full_name}</div>
+                                    <div class="user-username">@${user.username}</div>
+                                </div>
+                            `;
+                            userList.appendChild(userItem);
+                        });
+                    } else {
+                        userList.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fas fa-search"></i>
+                                <p>No se encontraron usuarios</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error buscando usuarios:', error);
+                });
+        }, 300);
+    }
+
+    function loadAllUsers() {
+        const userList = document.getElementById('userList');
+        userList.innerHTML = `
+            {% for user_item in users %}
+                <div class="user-item" onclick="startConversation({{ user_item.id }})">
+                    <div class="user-avatar">{{ user_item.username|first|upper }}</div>
+                    <div class="user-details">
+                        <div class="user-name">{{ user_item.get_full_name|default:user_item.username }}</div>
+                        <div class="user-username">@{{ user_item.username }}</div>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-users-slash"></i>
+                    <p>No hay usuarios disponibles</p>
+                </div>
+            {% endfor %}
+        `;
+    }
+
+    // Cerrar modal al hacer clic fuera
+    window.onclick = function(event) {
+        const modal = document.getElementById('newChatModal');
+        if (event.target === modal) {
+            closeNewChatModal();
+        }
+    }
+</script>
 {% endblock %}

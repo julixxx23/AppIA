@@ -244,11 +244,11 @@
                 {% for conversation in conversations %}
                     <a href="{% url 'chat_detail' conversation.id %}" class="conversation-item">
                         <div class="avatar">
-                            {{ conversation.get_other_participant.username|first|upper }}
+                            {{ conversation.other_participant.username|first|upper }}
                         </div>
                         <div class="conversation-info">
                             <div class="conversation-name">
-                                {{ conversation.get_other_participant.get_full_name|default:conversation.get_other_participant.username }}
+                                {{ conversation.other_participant.get_full_name|default:conversation.other_participant.username }}
                             </div>
                             <div class="last-message">
                                 {% if conversation.last_message %}

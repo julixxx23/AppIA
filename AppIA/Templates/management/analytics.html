@@ -4,8 +4,6 @@
 {% load static %}
 
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
 <style>
     .analytics-container {
@@ -128,39 +126,16 @@
         gap: 10px;
     }
     
-    .comparison-section {
-        background: white;
-        padding: 25px;
-        border-radius: 10px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        margin-bottom: 30px;
+    .chart-image {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
     }
     
-    .comparison-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-    
-    .period-selector {
-        display: flex;
-        gap: 10px;
-    }
-    
-    .period-btn {
-        padding: 8px 16px;
-        border: 2px solid #3498db;
-        background: white;
-        color: #3498db;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: all 0.3s;
-    }
-    
-    .period-btn:hover, .period-btn.active {
-        background: #3498db;
-        color: white;
+    .no-data {
+        text-align: center;
+        padding: 40px;
+        color: #7f8c8d;
     }
     
     .insights-grid {
@@ -233,8 +208,7 @@
     }
     
     @media print {
-        .export-buttons,
-        .period-selector {
+        .export-buttons {
             display: none;
         }
     }
@@ -247,10 +221,10 @@
             Analytics - Gráficos Comparativos
         </h1>
         <div class="export-buttons">
-            <button onclick="exportToPDF()" class="btn btn-pdf">
+            <a href="{% url 'export_analytics_pdf' %}" class="btn btn-pdf">
                 <i class="fas fa-file-pdf"></i>
                 Exportar a PDF
-            </button>
+            </a>
             <button onclick="window.print()" class="btn btn-excel">
                 <i class="fas fa-print"></i>
                 Imprimir
@@ -287,18 +261,16 @@
         </div>
     </div>
 
-    <!-- Sección de comparación temporal -->
-    <div class="comparison-section">
-        <div class="comparison-header">
-            <h3><i class="fas fa-calendar-alt"></i> Comparación Temporal</h3>
-            <div class="period-selector">
-                <button class="period-btn active" onclick="changePeriod('week')">Semana</button>
-                <button class="period-btn" onclick="changePeriod('month')">Mes</button>
-                <button class="period-btn" onclick="changePeriod('year')">Año</button>
-            </div>
+    <!-- Gráfico temporal -->
+    {% if temporal_chart %}
+    <div class="chart-card full-width">
+        <div class="chart-title">
+            <i class="fas fa-calendar-alt"></i>
+            Tendencia Temporal (Últimos 7 días)
         </div>
-        <canvas id="temporalChart" width="100%" height="40"></canvas>
+        <img src="{{ temporal_chart }}" alt="Gráfico Temporal" class="chart-image">
     </div>
+    {% endif %}
 
     <!-- Gráficos comparativos -->
     <div class="charts-grid">
@@ -307,7 +279,14 @@
                 <i class="fas fa-chart-pie"></i>
                 Distribución General
             </div>
-            <canvas id="distributionChart" width="100%" height="100%"></canvas>
+            {% if distribution_chart %}
+                <img src="{{ distribution_chart }}" alt="Distribución" class="chart-image">
+            {% else %}
+                <div class="no-data">
+                    <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px;"></i>
+                    <p>No hay datos disponibles</p>
+                </div>
+            {% endif %}
         </div>
         
         <div class="chart-card">
@@ -315,23 +294,29 @@
                 <i class="fas fa-chart-bar"></i>
                 Comparativa por Categoría
             </div>
-            <canvas id="categoryChart" width="100%" height="100%"></canvas>
+            {% if bar_chart %}
+                <img src="{{ bar_chart }}" alt="Comparativa" class="chart-image">
+            {% else %}
+                <div class="no-data">
+                    <i class="fas fa-inbox" style="font-size: 48px; margin-bottom: 15px;"></i>
+                    <p>No hay datos disponibles</p>
+                </div>
+            {% endif %}
         </div>
         
-        <div class="chart-card">
+        <div class="chart-card full-width">
             <div class="chart-title">
-                <i class="fas fa-chart-line"></i>
-                Tendencia de Sentimientos
+                <i class="fas fa-users"></i>
+                Top 5 Usuarios Más Activos
             </div>
-            <canvas id="trendChart" width="100%" height="100%"></canvas>
-        </div>
-        
-        <div class="chart-card">
-            <div class="chart-title">
-                <i class="fas fa-layer-group"></i>
-                Análisis por Usuario
-            </div>
-            <canvas id="userChart" width="100%" height="100%"></canvas>
+            {% if user_chart %}
+                <img src="{{ user_chart }}" alt="Usuarios" class="chart-image">
+            {% else %}
+                <div class="no-data">
+                    <i class="fas fa-user-slash" style="font-size: 48px; margin-bottom: 15px;"></i>
+                    <p>No hay datos de usuarios disponibles</p>
+                </div>
+            {% endif %}
         </div>
     </div>
 
@@ -421,202 +406,5 @@
         </table>
     </div>
 </div>
-
-<script>
-// Datos del backend
-const analyticsData = {
-    neutral: {{ neutral_count }},
-    positive: {{ positive_count }},
-    harassment: {{ harassment_count }},
-    extortion: {{ extortion_count }}
-};
-
-// Colores consistentes
-const colors = {
-    neutral: '#95a5a6',
-    positive: '#27ae60',
-    harassment: '#e74c3c',
-    extortion: '#8e44ad'
-};
-
-// Gráfico de distribución (Pie)
-const distCtx = document.getElementById('distributionChart').getContext('2d');
-new Chart(distCtx, {
-    type: 'doughnut',
-    data: {
-        labels: ['Neutral', 'Positivo', 'Acoso/Violencia', 'Extorsión'],
-        datasets: [{
-            data: [analyticsData.neutral, analyticsData.positive, analyticsData.harassment, analyticsData.extortion],
-            backgroundColor: [colors.neutral, colors.positive, colors.harassment, colors.extortion],
-            borderWidth: 3,
-            borderColor: '#fff'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { padding: 15, usePointStyle: true }
-            }
-        }
-    }
-});
-
-// Gráfico de categorías (Bar)
-const catCtx = document.getElementById('categoryChart').getContext('2d');
-new Chart(catCtx, {
-    type: 'bar',
-    data: {
-        labels: ['Neutral', 'Positivo', 'Acoso', 'Extorsión'],
-        datasets: [{
-            label: 'Cantidad',
-            data: [analyticsData.neutral, analyticsData.positive, analyticsData.harassment, analyticsData.extortion],
-            backgroundColor: [colors.neutral, colors.positive, colors.harassment, colors.extortion],
-            borderRadius: 5
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-            y: { beginAtZero: true, ticks: { stepSize: 1 } }
-        },
-        plugins: {
-            legend: { display: false }
-        }
-    }
-});
-
-// Gráfico de tendencia (Line)
-const trendCtx = document.getElementById('trendChart').getContext('2d');
-new Chart(trendCtx, {
-    type: 'line',
-    data: {
-        labels: ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
-        datasets: [
-            {
-                label: 'Positivo',
-                data: [12, 19, 15, 25],
-                borderColor: colors.positive,
-                backgroundColor: colors.positive + '33',
-                tension: 0.4
-            },
-            {
-                label: 'Acoso',
-                data: [5, 8, 6, 4],
-                borderColor: colors.harassment,
-                backgroundColor: colors.harassment + '33',
-                tension: 0.4
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: { position: 'bottom' }
-        },
-        scales: {
-            y: { beginAtZero: true }
-        }
-    }
-});
-
-// Gráfico por usuario (Horizontal Bar)
-const userCtx = document.getElementById('userChart').getContext('2d');
-new Chart(userCtx, {
-    type: 'bar',
-    data: {
-        labels: ['Usuario 1', 'Usuario 2', 'Usuario 3', 'Usuario 4'],
-        datasets: [{
-            label: 'Mensajes Analizados',
-            data: [45, 32, 28, 15],
-            backgroundColor: '#3498db',
-            borderRadius: 5
-        }]
-    },
-    options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            x: { beginAtZero: true }
-        }
-    }
-});
-
-// Gráfico temporal comparativo
-const temporalCtx = document.getElementById('temporalChart').getContext('2d');
-new Chart(temporalCtx, {
-    type: 'line',
-    data: {
-        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-        datasets: [
-            {
-                label: 'Neutral',
-                data: [10, 12, 15, 11, 13, 8, 9],
-                borderColor: colors.neutral,
-                backgroundColor: colors.neutral + '20',
-                fill: true
-            },
-            {
-                label: 'Positivo',
-                data: [15, 18, 20, 22, 19, 21, 17],
-                borderColor: colors.positive,
-                backgroundColor: colors.positive + '20',
-                fill: true
-            },
-            {
-                label: 'Acoso',
-                data: [3, 5, 4, 6, 5, 3, 2],
-                borderColor: colors.harassment,
-                backgroundColor: colors.harassment + '20',
-                fill: true
-            }
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: { usePointStyle: true, padding: 15 }
-            }
-        },
-        scales: {
-            y: { beginAtZero: true, stacked: false }
-        }
-    }
-});
-
-// Función para exportar a PDF
-function exportToPDF() {
-    const element = document.getElementById('pdf-content');
-    const opt = {
-        margin: 10,
-        filename: 'analytics-report-' + new Date().toISOString().split('T')[0] + '.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-    
-    html2pdf().set(opt).from(element).save();
-}
-
-// Cambiar período de comparación
-function changePeriod(period) {
-    document.querySelectorAll('.period-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    // Aquí podrías hacer una petición AJAX para obtener datos del período seleccionado
-    console.log('Cambiando a período:', period);
-}
-</script>
 
 {% endblock %}

@@ -123,6 +123,10 @@
         font-size: 16px;
         margin: 10px;
     }
+
+    button.btn {
+        font-family: inherit;
+    }
     
     .actions-section {
         text-align: center;
@@ -213,16 +217,18 @@
                                     {% endfor %}
                                 </h4>
                                 <div class="conversation-meta">
-                                    {{ conversation.messages.count }} mensajes • 
+                                    {{ conversation.messages.count }} mensajes •
                                     Última actividad: {{ conversation.updated_at|date:"d/m/Y H:i" }}
                                 </div>
                             </div>
                             <div>
-                                <a href="{% url 'generate_conversation_analysis' conversation.id %}" 
-                                   class="btn btn-primary">
-                                    <i class="fas fa-chart-pie"></i>
-                                    Analizar Conversación
-                                </a>
+                                <form method="POST" action="{% url 'generate_conversation_analysis' conversation.id %}" style="display: inline;">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-chart-pie"></i>
+                                        Analizar Conversación
+                                    </button>
+                                </form>
                             </div>
                         </li>
                     {% endfor %}

@@ -1,8 +1,257 @@
-{% extends 'Users/base_user.html' %} 
+{% extends 'Users/base_user.html' %}
+
+{% block page_title %}Contactos{% endblock %}
+{% block page_subtitle %}Encuentra usuarios para iniciar conversaciones{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Contactos</h1>
-    <p>Aquí ira la lista de contactos</p>  
+<style>
+    .contacts-wrapper {
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        padding: 30px;
+        min-height: 70vh;
+    }
+
+    .contacts-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #ecf0f1;
+    }
+
+    .contacts-header h2 {
+        color: #2c3e50;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .contact-stats {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 10px 20px;
+        border-radius: 25px;
+        font-weight: 600;
+    }
+
+    .search-box {
+        width: 100%;
+        padding: 14px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 30px;
+        font-size: 15px;
+        margin-bottom: 30px;
+        transition: all 0.3s;
+    }
+
+    .search-box:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .contacts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 20px;
+    }
+
+    .contact-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .contact-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        border-color: #667eea;
+    }
+
+    .contact-avatar {
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 28px;
+        margin: 0 auto 15px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .contact-info {
+        text-align: center;
+    }
+
+    .contact-name {
+        font-weight: 600;
+        color: #2c3e50;
+        margin-bottom: 5px;
+        font-size: 16px;
+    }
+
+    .contact-username {
+        color: #95a5a6;
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+
+    .contact-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+
+    .badge-conversation {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .badge-new {
+        background: #cce5ff;
+        color: #004085;
+    }
+
+    .start-chat-btn {
+        width: 100%;
+        padding: 10px;
+        background: #25d366;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .start-chat-btn:hover {
+        background: #20ba5a;
+        transform: scale(1.05);
+    }
+
+    .start-chat-btn i {
+        font-size: 16px;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #7f8c8d;
+    }
+
+    .empty-state i {
+        font-size: 80px;
+        margin-bottom: 20px;
+        color: #dfe6e9;
+    }
+
+    .empty-state h3 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+</style>
+
+<div class="contacts-wrapper">
+    <div class="contacts-header">
+        <h2>
+            <i class="fas fa-address-book"></i>
+            Todos los Contactos
+        </h2>
+        <div class="contact-stats">
+            <i class="fas fa-users"></i>
+            {{ total_contacts }} usuario{{ total_contacts|pluralize }}
+        </div>
+    </div>
+
+    <input
+        type="text"
+        id="contactSearch"
+        class="search-box"
+        placeholder="Buscar contacto por nombre o username..."
+        onkeyup="filterContacts()"
+    >
+
+    {% if all_users %}
+        <div class="contacts-grid" id="contactsGrid">
+            {% for contact in all_users %}
+                <div class="contact-card" data-name="{{ contact.get_full_name|default:contact.username|lower }}" data-username="{{ contact.username|lower }}">
+                    <div class="contact-avatar">
+                        {{ contact.username|first|upper }}
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">
+                            {{ contact.get_full_name|default:contact.username }}
+                        </div>
+                        <div class="contact-username">
+                            @{{ contact.username }}
+                        </div>
+                        {% if contact.id in users_with_conversations %}
+                            <span class="contact-badge badge-conversation">
+                                <i class="fas fa-check-circle"></i> Ya conversaron
+                            </span>
+                        {% else %}
+                            <span class="contact-badge badge-new">
+                                <i class="fas fa-plus-circle"></i> Nuevo contacto
+                            </span>
+                        {% endif %}
+                    </div>
+                    <form method="POST" action="{% url 'start_conversation' %}" style="margin-top: 15px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="user_id" value="{{ contact.id }}">
+                        <button type="submit" class="start-chat-btn">
+                            <i class="fas fa-comment-dots"></i>
+                            {% if contact.id in users_with_conversations %}
+                                Ver conversación
+                            {% else %}
+                                Iniciar chat
+                            {% endif %}
+                        </button>
+                    </form>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <i class="fas fa-user-friends"></i>
+            <h3>No hay contactos disponibles</h3>
+            <p>No hay otros usuarios registrados en el sistema</p>
+        </div>
+    {% endif %}
 </div>
+
+<script>
+    function filterContacts() {
+        const searchValue = document.getElementById('contactSearch').value.toLowerCase();
+        const contactCards = document.querySelectorAll('.contact-card');
+
+        contactCards.forEach(card => {
+            const name = card.getAttribute('data-name');
+            const username = card.getAttribute('data-username');
+
+            if (name.includes(searchValue) || username.includes(searchValue)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+</script>
 {% endblock %}
